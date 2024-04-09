@@ -5,17 +5,18 @@
 -------------------------------------------------------------------------------------------------
 -- Version : V1
 -- Version history :
--- V1 : 05-04-2024 : nooblife: Creation
+-- V1 : dd-mm-yyyy : nooblife: Creation
 -------------------------------------------------------------------------------------------------
--- File name : tb_template.vhd
--- File Creation date : 05-04-2024
--- Project name : My VHDL package
+-- File name : new_file_template.vhd
+-- File Creation date : dd-mm-yyyy
+-- Project name : VHDL Random Project
 -------------------------------------------------------------------------------------------------
--- Softwares : Windows (Windows 10 + 11) + Ubuntu (22LTS) - Editor (VSCode + Libero + ...)
+-- Softwares : current OS - Editor (VSCode + ...)
 -------------------------------------------------------------------------------------------------
--- Description: ...
+-- Description: Template file ...
+-- taken from : https://docs.amd.com/r/en-US/ug953-vivado-7series-libraries/XPM_CDC_SINGLE
 --
--- Limitations : ...
+-- Limitations : Copying means lot of work to do ...
 --
 -------------------------------------------------------------------------------------------------
 -- Naming conventions:
@@ -27,7 +28,6 @@
 --
 -- c_My_Constant: Constant definition
 -- t_My_Type: Custom type definition
--- f_My_function : Custom function
 --
 -- sc_My_Signal : Signal between components
 -- My_Signal_n: Active low signal
@@ -43,47 +43,64 @@
 --
 -------------------------------------------------------------------------------------------------
 
+-- xpm_cdc_single: Single-bit Synchronizer
+-- Xilinx Parameterized Macro, version 2023.2
+
 library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 
+Library xpm;
+use xpm.vcomponents.all
+
+-- my own package
+-- library work;
+-- use work.n2oblife_pkg.all;
+
 -------------------------------------------------------------------------------------------------
 -- ENTITY
 -------------------------------------------------------------------------------------------------
-entity tb is
-end entity tb;
+entity entity_name is 
+	generic();
+	port (
+		-- CONTROL
+		---------------------------------------------
+		clk : in std_logic; -- standard clk signal 
+		reset : in std_logic; -- standard reset signal
+		---------------------------------------------
+		
+		-- INPUTS
+		d: in std_logic; -- input signal or set of input signals
+		
+		-- OUTPUTS
+		q: out std_logic -- output signal or set of output signals
+	);
+end entity entity_name;
+-------------------------------------------------------------------------------------------------
+
+---------------------------------------------
+
+---------------------------------------------
 
 -------------------------------------------------------------------------------------------------
 -- ARCHITECTURE
 -------------------------------------------------------------------------------------------------
-architecture rtl of tb is
-
--------------------------------------------------------------------------------------------------
--- DESIGN UNDER TEST
--------------------------------------------------------------------------------------------------
-
+architecture rtl of entity_name is
 
 -------------------------------------------------------------------------------------------------
 -- CONSTANTS
 -------------------------------------------------------------------------------------------------
-    
-    -- time duration and time scale
-    -- fs, ps, ns, us, ms, sec, min, hr
-    ---------------------------------------------
-    constant c_time     : time := 10 ns; -- half period
-    ---------------------------------------------
 
-    constant c_waiting  : time := 10*c_time;
 
 -------------------------------------------------------------------------------------------------
 -- SIGNALS
 -------------------------------------------------------------------------------------------------
-    
-    signal clk      : std_logic :='0';
-    signal reset    : std_logic := '0';
 
-    signal sc_test1 : std_logic_vector;
-    signal sc_test2 : std_logic_vector;
+
+-------------------------------------------------------------------------------------------------
+-- COMPONENTS
+-------------------------------------------------------------------------------------------------
+
 
 -------------------------------------------------------------------------------------------------
 -- ATTRIBUTES
@@ -98,67 +115,44 @@ begin
 -- MAPPING
 -------------------------------------------------------------------------------------------------
 
--------------------------------------------------------------------------------------------------
--- PROCESS
--------------------------------------------------------------------------------------------------
+xpm_cdc_single_inst : xpm_cdc_single
+generic map (
+   DEST_SYNC_FF => 4,   -- DECIMAL; range: 2-10
+   INIT_SYNC_FF => 0,   -- DECIMAL; 0=disable simulation init values, 1=enable simulation init values
+   SIM_ASSERT_CHK => 0, -- DECIMAL; 0=disable simulation messages, 1=enable simulation messages
+   SRC_INPUT_REG => 1   -- DECIMAL; 0=do not register input, 1=register input
+)
+port map (
+   dest_out => dest_out, -- 1-bit output: src_in synchronized to the destination clock domain. This output
+                         -- is registered.
 
-    -- CLK_PROCESS 
-    clock : process 
+   dest_clk => dest_clk, -- 1-bit input: Clock signal for the destination clock domain.
+   src_clk => src_clk,   -- 1-bit input: optional; required when SRC_INPUT_REG = 1
+   src_in => src_in      -- 1-bit input: Input signal to be synchronized to dest_clk domain.
+);
+
+-- End of xpm_cdc_single_inst instantiation
+
+-------------------------------------------------------------------------------------------------
+-- Processs
+-------------------------------------------------------------------------------------------------
+	-- Process Description: Change state of the entity_name on rising clock edge
+	-- Process is synchronous to the main clk
+	-- Additional details: Reset is synchronous,=
+	entity_state: process(clk)
     begin
-        clk <= not clk after c_time;
-    end process clock;    
-    
--------------------------------------------------------------------------------------------------
-    
-    -- CTRL_PROCESS
-    -- Process Description: a process which waits
-    -- Process has no sensitivity list
-    -- Additional details: 
-    ctrl : process(clk)
-    begin
-        reset <= '1', '0' after 1000*c_time;
-    end process ctrl; 
+		if rising_edge(clk) then
+			if(reset = '1') then
+				-- Reset logic
+			else then
+				-- Run logic
+			end if;				
+		end if;
+	end process entity_state;
 
 -------------------------------------------------------------------------------------------------
-
-    -- stimulus_PROCESS
-    -- Process Description: a process which waits
-    -- Process has no sensitivity list
-    -- Additional details: 
-    STIMULUS : process
-    begin
-        -- wait reset release
-        wait until reset = '0';
-
-        -- Generate each of in turn, waiting 1 clock periods between
-        -- each iteration to allow for propagation times
-        sc_test1 <= "00";
-        wait for 2*c_time;
-
-        sc_test1 <= "01";
-        wait for 2*c_time;
-
-        sc_test1 <= "10";
-        wait for 2*c_time;
-
-        sc_test1 <= "11";
-        -- Testing complete
-        wait;
-
-    end process stimulus;
-
+-- OUTPUTS
 -------------------------------------------------------------------------------------------------
-
-    -- WAITING_PROCESS
-    -- Process Description: a process which waits
-    -- Process has no sensitivity list
-    -- Additional details: 
-    waiting : process
-    begin
-        wait for c_waiting;
-        wait until <condition> for c_waiting;
-        wait on sc_test1, sc_test2;
-    end process waiting;
 
 -------------------------------------------------------------------------------------------------
 end architecture rtl;
