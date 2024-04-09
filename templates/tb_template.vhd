@@ -75,7 +75,7 @@ architecture rtl of tb is
 -------------------------------------------------------------------------------------------------
     
     signal clk : std_logic;
-    signal reset : std_logic;
+    signal reset : std_logic := '0';
 
     signal sc_test1 : std_logic_vector;
     signal sc_test2 : std_logic_vector;
@@ -113,10 +113,38 @@ begin
     -- Process Description: a process which waits
     -- Process has no sensitivity list
     -- Additional details: 
-    ctrl : process(clk) 
+    ctrl : process(clk)
     begin
         reset <= '1', '0' after 1000*c_time;
     end process ctrl; 
+
+-------------------------------------------------------------------------------------------------
+
+    -- stimulus_PROCESS
+    -- Process Description: a process which waits
+    -- Process has no sensitivity list
+    -- Additional details: 
+    STIMULUS : process
+    begin
+        -- wait reset release
+        wait until reset = '0';
+
+        -- Generate each of in turn, waiting 1 clock periods between
+        -- each iteration to allow for propagation times
+        sc_test1 <= "00";
+        wait for 2*c_time;
+
+        sc_test1 <= "01";
+        wait for 2*c_time;
+
+        sc_test1 <= "10";
+        wait for 2*c_time;
+
+        sc_test1 <= "11";
+        -- Testing complete
+        wait;
+
+    end process stimulus;
 
 -------------------------------------------------------------------------------------------------
 
