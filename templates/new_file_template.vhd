@@ -69,9 +69,11 @@ entity entity_name is
 end entity entity_name;
 -------------------------------------------------------------------------------------------------
 
+
+-------------------------------------------------------------------------------------------------
+-- ARCHITECTURE
 -------------------------------------------------------------------------------------------------
 architecture rtl of entity_name is
--------------------------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------------------------
 -- CONSTANTS
@@ -98,18 +100,24 @@ begin
 -------------------------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------------------------
--- ENTITY STATE
+-- MAPPING
+-------------------------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------------------------
+-- Processs
 -------------------------------------------------------------------------------------------------
 	-- Process Description: Change state of the entity_name on rising clock edge
-	-- Process is synchronous
-	-- Additional details: There is no reset because reset is handled in the Tx_proc as asynchronous signal
-	entity_state: process(reset, clk)
+	-- Process is synchronous to the main clk
+	-- Additional details: Reset is synchronous,=
+	entity_state: process(clk)
     begin
-        if(reset = '1') then
-            -- Reset logic
-		elsif(rising_edge(clk)) then
-			-- Run logic
-		end if;				
+		if rising_edge(clk) then
+			if(reset = '1') then
+				-- Reset logic
+			else then
+				-- Run logic
+			end if;				
+		end if;
 	end process entity_state;
 
 -------------------------------------------------------------------------------------------------
