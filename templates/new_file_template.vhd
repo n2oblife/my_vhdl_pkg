@@ -57,8 +57,10 @@ entity entity_name is
 	generic();
 	port (
 		-- CONTROL
+		---------------------------------------------
 		clk : in std_logic; -- standard clk signal 
 		reset : in std_logic; -- standard reset signal
+		---------------------------------------------
 		
 		-- INPUTS
 		d: in std_logic; -- input signal or set of input signals
@@ -69,6 +71,9 @@ entity entity_name is
 end entity entity_name;
 -------------------------------------------------------------------------------------------------
 
+---------------------------------------------
+
+---------------------------------------------
 
 -------------------------------------------------------------------------------------------------
 -- ARCHITECTURE

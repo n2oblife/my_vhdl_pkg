@@ -61,15 +61,27 @@ architecture rtl of tb is
 -------------------------------------------------------------------------------------------------
 -- CONSTANTS
 -------------------------------------------------------------------------------------------------
+    
+    -- time duration and time scale
+    -- fs, ps, ns, us, ms, sec, min, hr
+    ---------------------------------------------
+    constant c_time     : time := 10 ns;
+    ---------------------------------------------
 
+    constant c_waiting  : time := 10*c_time;
 
 -------------------------------------------------------------------------------------------------
 -- SIGNALS
 -------------------------------------------------------------------------------------------------
+    
+    signal clk : std_logic;
+    signal reset : std_logic;
 
+    signal sc_test1 : std_logic_vector;
+    signal sc_test2 : std_logic_vector;
 
 -------------------------------------------------------------------------------------------------
--- COMPONENTS
+-- DESIGN UNDER TEST
 -------------------------------------------------------------------------------------------------
 
 
@@ -89,9 +101,35 @@ begin
 -- PROCESS
 -------------------------------------------------------------------------------------------------
 
+    -- CLK_PROCESS 
+    clock : process 
+    begin
+        clk <= not clk after c_time;
+    end process clock;    
+    
 -------------------------------------------------------------------------------------------------
--- OUTPUTS
+    
+    -- CTRL_PROCESS
+    -- Process Description: a process which waits
+    -- Process has no sensitivity list
+    -- Additional details: 
+    ctrl : process(clk) 
+    begin
+        reset <= '1', '0' after 1000*c_time;
+    end process ctrl; 
+
 -------------------------------------------------------------------------------------------------
+
+    -- WAITING_PROCESS
+    -- Process Description: a process which waits
+    -- Process has no sensitivity list
+    -- Additional details: 
+    waiting : process
+    begin
+        wait for c_waiting;
+        wait until <condition> for c_waiting;
+        wait on sc_test1, sc_test2;
+    end process waiting;
 
 -------------------------------------------------------------------------------------------------
 end architecture rtl;
