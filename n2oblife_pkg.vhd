@@ -179,9 +179,14 @@ package n2oblife_pkg is
 
 -------------------------------------------------------------------------------------------------
 
+    -- Reset functions
+    function rst_array(in_array : row)      return row;
+    function rst_matrix(in_mat : matrix)    return matrix;
+
     -- Buffer handling functions
     function buffer_shift(in_sig : sl; buff : buffer )  return buffer;
     function buffer_shift(in_sig : sl; buff : slv )     return slv;
+
 
 -------------------------------------------------------------------------------------------------
 end n2oblife_pkg;
@@ -435,9 +440,24 @@ package body n2oblife_pkg is
         variable result : matrix(L'length+R'length downto 0)(L(0)'range)(L(0)(0)'range);
     begin
         for i in R'range loop result(i) := R(i); end loop;
-        for i in L'range loop result(i+R'length) := L(i) end loop;
+        for i in L'range loop result(i+R'length) := L(i); end loop;
         return result;
     end function concat;
+
+-------------------------------------------------------------------------------------------------
+
+    -- Reset functions
+    function rst_array(in_array : row) return row is
+    begin
+        for i in in_array'range loop in_array(i) <= (others => '0'); end loop;
+        return in_array;
+    end function;
+
+    function rst_matrix(in_mat : matrix) return matrix is
+    begin
+        for i in in_mat'range loop in_mat(i) <= rst_array(in_mat(i)); end loop;
+        return in_mat;
+    end function;
 
 -------------------------------------------------------------------------------------------------
 
