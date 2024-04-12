@@ -183,9 +183,12 @@ package n2oblife_pkg is
     function rst_array(in_array : row)      return row;
     function rst_matrix(in_mat : matrix)    return matrix;
 
-    -- Buffer handling functions
-    function buffer_shift(in_sig : sl; buff : buffer )  return buffer;
-    function buffer_shift(in_sig : sl; buff : slv )     return slv;
+    -- Buffer handling functions (FIFO and LIFO ?)
+    -- function push(elt : sl;     in_row : buffer)    return buffer;
+    -- function push(elt : slv;    in_row : row)       return row;
+    -- function f_pop(in_row : buffer)
+    -- function l_pop(in_row : buffer)
+
 
 
 -------------------------------------------------------------------------------------------------
