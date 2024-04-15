@@ -138,9 +138,10 @@ package n2oblife_pkg is
 
 
 -------------------------------------------------------------------------------------------------
-
+    ---------------------------------------------
     -- Avalon Streaming Interface
-    type ASI is record
+    ---------------------------------------------
+    type t_ASI is record
         -- fundamental signals
         channel : slv;  -- the channel number for data being transferred
         data    : slv;  -- data source -> sink
@@ -153,29 +154,80 @@ package n2oblife_pkg is
         eop     : sl;   -- end of packet signal from Avalon Streaming Protocol
     end record ASI;
 
+    ---------------------------------------------
+    -- APB Interface for multiple IPs
+    ---------------------------------------------
+    -- Parameters
+    constant C_APB_BUS_NB           : integer :=  1;
+    constant C_APB_ADDR_LENGTH      : integer :=  8;
+    constant C_APB_DATA_LENGTH      : integer := 32;
 
-    -- APB Interface
-    type APB is record
+    type t_apb_bus_addr     is array (0 to C_APB_BUS_NB-1) of std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0); 
+    type t_apb_bus_ctrl     is array (0 to C_APB_BUS_NB-1) of std_logic; 
+    type t_apb_bus_data     is array (0 to C_APB_BUS_NB-1) of std_logic_vector(C_APB_DATA_LENGTH-1 downto 0);
+    type t_apb_bus_pstb     is array (0 to C_APB_BUS_NB-1) of slv(3 downto 0);
+    type t_apb_bus_pprot    is array (0 to C_APB_BUS_NB-1) of slv(2 downto 0);
+
+    type t_APB is record
         -- CONTROL
         pclk        : sl;               -- APB clock
         preset      : sl;               -- APB reset
         -- INPUTS
-        i_paddr     : slv(31 downto 0); -- APB address
-        i_pdata     : slv;              -- APB data
-        i_pwrite    : sl;               -- APB write (0:read / 1:write)
-        i_pstb      : slv(3 downto 0);  -- APB strobe
-        i_psel      : sl;               -- APB select
-        i_penable   : sl;               -- APB enable
-        i_pprot     : slv(2 downto 0);  -- APB protection 
+        i_paddr     : t_apb_bus_addr;   -- APB address
+        i_pdata     : t_apb_bus_data;   -- APB data
+        i_pwrite    : t_apb_bus_ctrl;   -- APB write (0:read / 1:write)
+        i_pstb      : t_apb_bus_pstb;   -- APB strobe
+        i_pselx      : t_apb_bus_ctrl;  -- APB select
+        i_penable   : t_apb_bus_ctrl;   -- APB enable
+        i_pprot     : t_apb_bus_pprot;  -- APB protection 
                                             -- (xx0 : non-priviliged, xx1 : priviliged, 
                                             --  x0x : non-secure, x1x : secure, 
                                             --  0xx : data access, 1xx : instruction access)      
         -- OUTPUTS  
-        o_pdata     : slv;              -- APB data from slave
-        o_pready    : sl;               -- APB ready signal from slave
-        o_pslverr   : sl;               -- APB slave error signal
+        o_pdata     : t_apb_bus_data;   -- APB data from slave
+        o_pready    : t_apb_bus_ctrl;   -- APB ready signal from slave
+        o_pslverr   : t_apb_bus_ctrl;   -- APB slave error signal
     end record APB;
 
+    -- Operating states
+    type t_apb_states is (IDLE, SETUP, ACCES);
+
+    -- Testbench status
+    type t_apb_status is (
+        APB_ST1     ,
+        APB_ST2     ,
+        APB_ST3     ,
+        APB_ST4     ,
+        APB_ST5     ,
+        APB_ST_RDY  
+    );
+
+-------------------------------------------------------------------------------------------------
+
+    ---------------------------------------------
+    -- Image loading for testbench(.raw only)
+    ---------------------------------------------  
+    -- FILE & DUT
+    constant TB_C_VIDEO_PIX_PER_CLK     : integer :=    1;
+    constant TB_C_VIDEO_PIX_WIDTH       : integer :=   10;
+    constant TB_C_VIDEO_SEL             : integer :=    0;
+    constant TB_C_VIDEO_X_FP            : integer :=   16;
+    constant TB_C_VIDEO_X_SIZE          : integer :=  780;
+    constant TB_C_VIDEO_X_BP            : integer :=   16;
+    constant TB_C_VIDEO_Y_FP            : integer :=    0;
+    constant TB_C_VIDEO_Y_SIZE          : integer :=  640;
+    constant TB_C_VIDEO_Y_BP            : integer :=    1;
+
+    -- FILE
+    constant TB_SIMU_PATH               : string := "../stimulus/";
+    constant TB_IMG_IN_MSB_FIRST        : std_logic := '0';
+    constant TB_IMG_IN_0                : string := "img.raw";
+    -- constant TB_PATH_IMG_1              : string := "../stimulus/";
+    -- constant TB_IMG_OUT_PATH            : string := "";
+    constant FILE_PIX_DEPTH_IN          : integer := 16;
+    constant FILE_PIX_DEPTH_OUT         : integer := 8;
+    constant FILE_VIDEO_RD_WIDTH        : integer := TB_C_VIDEO_PIX_PER_CLK*FILE_PIX_DEPTH_IN;
+    constant FILE_VIDEO_WR_WIDTH        : integer := TB_C_VIDEO_PIX_PER_CLK*FILE_PIX_DEPTH_OUT;
 
 -------------------------------------------------------------------------------------------------
 
@@ -184,12 +236,29 @@ package n2oblife_pkg is
     function rst_matrix(in_mat : matrix)    return matrix;
 
     -- Buffer handling functions (FIFO and LIFO ?)
+    -- to handle multiple output, create a type with each output type
     -- function push(elt : sl;     in_row : buffer)    return buffer;
     -- function push(elt : slv;    in_row : row)       return row;
     -- function f_pop(in_row : buffer)
     -- function l_pop(in_row : buffer)
 
+-------------------------------------------------------------------------------------------------
 
+    -- APB Read / Write procedures inside of process
+    procedure p_apb_rd_reg_tb(
+        apb_inst    : t_APB                                           ;
+        apb_id      : integer                                       ;
+        reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
+        apb_status  : t_apb_status
+    );
+
+    procedure p_apb_wr_reg(
+        apb_inst    : t_APB;
+        apb_id      : int;
+        reg_addr    : slv(C_APB_ADDR_LENGTH-1 downto 0);
+        reg_data    : slv(C_APB_DATA_LENGTH-1 downto 0);
+        apb_status  : t_apb_status
+    );
 
 -------------------------------------------------------------------------------------------------
 end n2oblife_pkg;
@@ -467,6 +536,100 @@ package body n2oblife_pkg is
     -- buffer handling functions
     -- TODO if necessary
 
+-------------------------------------------------------------------------------------------------
+
+    -- Procedure Read / Write for APB Interface
+    
+    procedure p_apb_rd_reg_tb(
+        apb_inst    : t_APB                                           ;
+        apb_id      : integer                                       ;
+        reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
+        apb_status  : t_apb_status
+        ) is
+        begin
+            -- test bus status
+            if (apb_status/=APB_ST_RDY) then
+                report "APB Error" severity error;
+            end if;
+            
+        ---------------------------------------------
+        -- READ Transfer – Without Wait States
+        -- T1 = setup phase
+        apb_inst.i_pwrite(apb_id) <= '0';
+        apb_inst.i_pselx (apb_id) <= '1';
+        apb_inst.i_paddr (apb_id) <= reg_addr;
+        wait until rising_edge(apb_inst.pclk);
+        
+        apb_status <= APB_ST1;
+        
+        -- T2 = access phase
+        apb_inst.i_penable(apb_id) <= '1';
+        -- PREADY not used
+        wait until rising_edge(apb_inst.pclk);
+        
+        apb_status <= APB_ST2;
+        
+        -- T3 = read transfer
+        apb_inst.apb_rd_data <= apb_inst.APB_PRDATA(apb_id);
+        wait until rising_edge(apb_inst.pclk);
+        
+        apb_status <= APB_ST3;
+        
+        -- End transfert
+        apb_inst.i_pselx   (apb_id) <= '0';
+        apb_inst.i_penable(apb_id)  <= '0';
+        
+        apb_status <= APB_ST_RDY;
+        wait until falling_edge(apb_inst.pclk);
+        
+    end procedure p_apb_rd_reg_tb;
+
+
+    procedure p_apb_wr_reg_tb(
+        apb_inst    : t_APB                                           ;
+        apb_id      : integer                                       ;
+        reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
+        reg_data    : std_logic_vector(C_APB_DATA_LENGTH downto 0)                 ;
+        apb_status  : t_apb_status
+    ) is
+    begin
+        -- test bus status
+        if (apb_status/=APB_ST_RDY) then
+            report "APB Error" severity error;
+        end if;
+    
+        -- WRITE Transfer – Without Wait States
+        ---------------------------------------------
+        -- T1 = write transfer setup
+        apb_inst.i_pwrite(apb_id) <= '1';
+        apb_inst.i_pselx (apb_id) <= '1';
+        apb_inst.i_paddr (apb_id) <= reg_addr;
+        apb_inst.o_pdata(apb_id) <= reg_data;    
+        wait until rising_edge(apb_CLOCK);
+        
+        apb_status <= APB_ST1;
+        
+        -- T2 = access phase
+        apb_inst.i_penable(apb_id) <= '1';
+        -- PREADY not used
+        wait until rising_edge(apb_CLOCK);
+
+        apb_status <= APB_ST2;
+
+        -- T3 = write transfer
+        -- APB_PWDATA(apb_id) <= reg_data;    
+        wait until rising_edge(apb_CLOCK);
+        
+        apb_status <= APB_ST3;
+        
+        -- End transfert
+        apb_inst.i_pselx   (apb_id) <= '0';
+        apb_inst.i_penable(apb_id)  <= '0';
+        
+        apb_status <= APB_ST_RDY;
+        wait until falling_edge(apb_CLOCK);
+        
+    end p_apb_wr_reg_tb;
 -------------------------------------------------------------------------------------------------
 end n2oblife_pkg;
 -------------------------------------------------------------------------------------------------
