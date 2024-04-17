@@ -68,30 +68,35 @@ package n2oblife_pkg is
     subtypes int    is integer;
     subtypes nat    is natural;
     subtypes pos    is positive;
+    subtypes str    is string;
+    subtypes char   is character;
 
     -- Data strcuture
-    type buffer is array (natural <range>) of sl;
-    type row    is array (natural <range>) of slv;
-    type matrix is array (natural <range>) of row;
+    type buffer is array (nat <range>) of sl;
+    type row    is array (nat <range>) of slv;
+    type matrix is array (nat <range>) of row;
 
 
 -------------------------------------------------------------------------------------------------
 
     -- Type conversion 
-    function sgn        (vec : slv)                 return sgn;
-    function usgn       (vec : slv)                 return usgn;
-    function slv        (usig : usgn)               return slv;
-    function sgn        (usig : usgn)               return sgn;
-    function to_int     (usig : usgn)               return int;
-    function slv        (sig : sgn)                 return slv;
-    function usgn       (sig : sgn)                 return usgn;
-    function to_int     (sig : sgn)                 return int;
-    function to_sgn     (integ : int; length : int) return sgn;
-    function to_usgn    (integ : int; length : int) return usgn;
+    function sgn        (vec    : slv)                  return sgn;
+    function usgn       (vec    : slv)                  return usgn;
+    function slv        (usig   : usgn)                 return slv;
+    function sgn        (usig   : usgn)                 return sgn;
+    function to_int     (usig   : usgn)                 return int;
+    function slv        (sig    : sgn)                  return slv;
+    function usgn       (sig    : sgn)                  return usgn;
+    function to_int     (sig    : sgn)                  return int;
+    function to_sgn     (integ  : int; length : int)    return sgn;
+    function to_usgn    (integ  : int; length : int)    return usgn;
     
     
     -- Operators overloading (return size handled), element wise operations
     -- TODO, add relations operators (= and /=)
+    function "+"    (L:slv;     R:int)      return slv;
+    function "-"    (L:slv;     R:int)      return slv;
+    ---------------------------------------------
     function "+"    (L:slv;     R:slv)      return slv;
     function "-"    (L:slv;     R:slv)      return slv;
     function "*"    (L:slv;     R:slv)      return slv;
@@ -135,38 +140,42 @@ package n2oblife_pkg is
     function concat (L:row;     R:row)      return row;
     function concat (L:matrix;  R:matrix)   return matrix;
 
-
-
 -------------------------------------------------------------------------------------------------
     ---------------------------------------------
     -- Avalon Streaming Interface
     ---------------------------------------------
     type t_ASI is record
         -- fundamental signals
-        channel : slv;  -- the channel number for data being transferred
-        data    : slv;  -- data source -> sink
-        error   : slv;  -- bit mask to mark errors affecting the data
-        ready   : sl    -- Asserts high to indicate that the sink can accept data
+        -- INPUTS
         valid   : sl;   -- valid signal from Avalon Streaming Protocol
-        -- packet transfert signals
-        empty   : slv   -- Indicates the number of symbols that are empty
+        data    : slv;  -- data source -> sink
+        channel : slv;  -- the channel number for data being transferred
+        -- OUTPUTS
+        ready   : sl;   -- Asserts high to indicate that the sink can accept data
+        error   : slv;  -- bit mask to mark errors affecting the data
+        -- packet transfer signals
+        -- INPUTS
         sop     : sl;   -- start of packet signal from Avalon Streaming Protocol
         eop     : sl;   -- end of packet signal from Avalon Streaming Protocol
-    end record ASI;
+        empty   : slv;  -- Indicates the number of symbols that are empty
+    end record t_ASI;    
 
     ---------------------------------------------
     -- APB Interface for multiple IPs
     ---------------------------------------------
     -- Parameters
-    constant C_APB_BUS_NB           : integer :=  1;
-    constant C_APB_ADDR_LENGTH      : integer :=  8;
-    constant C_APB_DATA_LENGTH      : integer := 32;
+    type t_APB_prop is record
+        BUS_NB           : int :=  1;
+        ADDR_LENGTH      : int :=  8;
+        DATA_LENGTH      : int := 32;
+    end record t_APB_prop;
 
-    type t_apb_bus_addr     is array (0 to C_APB_BUS_NB-1) of std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0); 
-    type t_apb_bus_ctrl     is array (0 to C_APB_BUS_NB-1) of std_logic; 
-    type t_apb_bus_data     is array (0 to C_APB_BUS_NB-1) of std_logic_vector(C_APB_DATA_LENGTH-1 downto 0);
-    type t_apb_bus_pstb     is array (0 to C_APB_BUS_NB-1) of slv(3 downto 0);
-    type t_apb_bus_pprot    is array (0 to C_APB_BUS_NB-1) of slv(2 downto 0);
+    -- natural range of BUS_NB with slv
+    type t_apb_bus_ctrl     is array (nat <range>) of sl; 
+    type t_apb_bus_addr     is array (nat <range>) of slv; 
+    type t_apb_bus_data     is array (nat <range>) of slv;
+    type t_apb_bus_pstb     is array (nat <range>) of slv(3 downto 0);
+    type t_apb_bus_pprot    is array (nat <range>) of slv(2 downto 0);
 
     type t_APB is record
         -- CONTROL
@@ -177,7 +186,7 @@ package n2oblife_pkg is
         i_pdata     : t_apb_bus_data;   -- APB data
         i_pwrite    : t_apb_bus_ctrl;   -- APB write (0:read / 1:write)
         i_pstb      : t_apb_bus_pstb;   -- APB strobe
-        i_pselx      : t_apb_bus_ctrl;  -- APB select
+        i_pselx     : t_apb_bus_ctrl;   -- APB select
         i_penable   : t_apb_bus_ctrl;   -- APB enable
         i_pprot     : t_apb_bus_pprot;  -- APB protection 
                                             -- (xx0 : non-priviliged, xx1 : priviliged, 
@@ -187,47 +196,10 @@ package n2oblife_pkg is
         o_pdata     : t_apb_bus_data;   -- APB data from slave
         o_pready    : t_apb_bus_ctrl;   -- APB ready signal from slave
         o_pslverr   : t_apb_bus_ctrl;   -- APB slave error signal
-    end record APB;
+    end record t_APB;
 
     -- Operating states
-    type t_apb_states is (IDLE, SETUP, ACCES);
-
-    -- Testbench status
-    type t_apb_status is (
-        APB_ST1     ,
-        APB_ST2     ,
-        APB_ST3     ,
-        APB_ST4     ,
-        APB_ST5     ,
-        APB_ST_RDY  
-    );
-
--------------------------------------------------------------------------------------------------
-
-    ---------------------------------------------
-    -- Image loading for testbench(.raw only)
-    ---------------------------------------------  
-    -- FILE & DUT
-    constant TB_C_VIDEO_PIX_PER_CLK     : integer :=    1;
-    constant TB_C_VIDEO_PIX_WIDTH       : integer :=   10;
-    constant TB_C_VIDEO_SEL             : integer :=    0;
-    constant TB_C_VIDEO_X_FP            : integer :=   16;
-    constant TB_C_VIDEO_X_SIZE          : integer :=  780;
-    constant TB_C_VIDEO_X_BP            : integer :=   16;
-    constant TB_C_VIDEO_Y_FP            : integer :=    0;
-    constant TB_C_VIDEO_Y_SIZE          : integer :=  640;
-    constant TB_C_VIDEO_Y_BP            : integer :=    1;
-
-    -- FILE
-    constant TB_SIMU_PATH               : string := "../stimulus/";
-    constant TB_IMG_IN_MSB_FIRST        : std_logic := '0';
-    constant TB_IMG_IN_0                : string := "img.raw";
-    -- constant TB_PATH_IMG_1              : string := "../stimulus/";
-    -- constant TB_IMG_OUT_PATH            : string := "";
-    constant FILE_PIX_DEPTH_IN          : integer := 16;
-    constant FILE_PIX_DEPTH_OUT         : integer := 8;
-    constant FILE_VIDEO_RD_WIDTH        : integer := TB_C_VIDEO_PIX_PER_CLK*FILE_PIX_DEPTH_IN;
-    constant FILE_VIDEO_WR_WIDTH        : integer := TB_C_VIDEO_PIX_PER_CLK*FILE_PIX_DEPTH_OUT;
+    type t_apb_states is (APB_IDLE, APB_SETUP, APB_ACCES, APB_RDY);
 
 -------------------------------------------------------------------------------------------------
 
@@ -244,9 +216,101 @@ package n2oblife_pkg is
 
 -------------------------------------------------------------------------------------------------
 
+    -- Reset functions
+    function rst_array(in_array : row)      return row;
+    function rst_matrix(in_mat : matrix)    return matrix;
+
+    -- Buffer handling functions (FIFO and LIFO ?)
+    -- to handle multiple output, create a type with each output type
+    -- function push(elt : sl;     in_row : buffer)    return buffer;
+    -- function push(elt : slv;    in_row : row)       return row;
+    -- function f_pop(in_row : buffer)
+    -- function l_pop(in_row : buffer)
+
+-------------------------------------------------------------------------------------------------
+-- TESTBENCH
+-------------------------------------------------------------------------------------------------
+   
+    ---------------------------------------------
+    -- Image loading for testbench(.raw only)
+    ---------------------------------------------  
+    -- FILE & DUT
+    type t_video_prop is record
+        PIX_PER_CLK     : int;  -- number of pixels per clock
+        PIX_WIDTH       : int;  -- number of bits per pixel
+        SEL             : int;  -- number of select signals
+        X_FP            : int;  -- number of front blanking pixels
+        X_SIZE          : int;  -- number of pixels in a line
+        X_BP            : int;  -- number of back blanking pixels
+        Y_FP            : int;  -- number of front blanking lines
+        Y_SIZE          : int;  -- number of lines in a frame
+        Y_BP            : int;  -- number of back blanking lines
+    end record t_video_prop;
+
+    -- FILE
+    type t_file_prop is record
+        DATA_IN_PER_CLK     : int;      -- number of data per clock
+        SIMU_PATH           : str;      -- := "../stimulus/";
+        FILE_IN             : str;      -- := "file_in.raw";
+        FILE_OUT            : str;      -- := "file_out.raw";
+        MSB_FIRST           : sl;       -- tells if msb sent first
+        DATA_DEPTH_IN       : int;      -- depth of in data
+        DATA_DEPTH_OUT      : int;      -- depth of out data
+        -- RD_WIDTH            : int;  -- := PIX_PER_CLK*PIX_DEPTH_IN;
+        -- WR_WIDTH            : int;  -- := PIX_PER_CLK*PIX_DEPTH_OUT;
+    end record t_file_prop;
+
+    -- -- data in gen
+    -- type t_video_sig is record
+    --     clk                      : std_logic := '0';
+    --     reset_n                  : std_logic;
+    --     i_ready              : std_logic;
+    --     o_ready           : std_logic;
+    --     i_sop                   : std_logic;
+    --     i_dval                  : std_logic;
+    --     i_data                  : std_logic_vector(DUT_VIDEO_IN_BUS_WIDTH-1 downto 0);
+    --     i_eop                   : std_logic;
+    -- end record t_video_sig;
+
+    -- File ctrl (for writing)
+    type t_video_file_ctrl is record
+        data_is_file_data       : sl := '1';
+        img_wr_pix_byte_cnt     : int := 0;
+        out_type_file           : str(1 to 4) := ".raw"; -- or ".bin"
+        img_file_name           : str(1 to 15);
+    end record t_video_file_ctrl;
+
+    type TB_FILE_STATUS is (
+        ST_INIT             ,
+        ST_WAIT_NEW_IMG     ,
+        ST_NEW_IMG_RX       ,
+        ST_FILE_OPENED_OK   ,
+        ST_FILE_OPENED_KO   ,
+        ST_FILE_PROCESSING  ,
+        ST_FILE_END_OK      ,
+        ST_FILE_END_KO      ,
+        ST_FILE_CLOSED      
+    );
+
+-------------------------------------------------------------------------------------------------
+
+    procedure p_read_video_file_tb(
+        tb_img_path     : string;           -- path to the image
+        s_fread_sig     : t_ASI;            -- file read signals
+        s_video_reset   : std_logic;        -- a video reset signal
+        msb_first       : std_logic;        -- tells if msb sent first
+        tb_frd_status   : TB_FILE_STATUS    -- checks read status
+    );
+
+    -- TODO adapt procedure for writing
+    -- procedure p_write_video_file_tb(
+    -- );
+
+-------------------------------------------------------------------------------------------------
+
     -- APB Read / Write procedures inside of process
     procedure p_apb_rd_reg_tb(
-        apb_inst    : t_APB                                           ;
+        apb_inst    : t_APB                                          ;
         apb_id      : integer                                       ;
         reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
         apb_status  : t_apb_status
@@ -294,6 +358,15 @@ package body n2oblife_pkg is
 
 
     -- Operator overloading functions
+
+    function "+" (L:slv; R:int) return slv is variable result : slv(L'range);
+    begin result = slv(usgn(L)+R); return result; end function "+";
+
+    function "-" (L:slv; R:int) return slv is variable result : slv(L'range);
+    begin result = slv(usgn(L)-R); return result; end function "-";
+
+    ---------------------------------------------
+
     function "+"(L:slv; R:slv) return slv is variable result : slv(L'left+1 downto L'right);
     begin result = slv(usgn(L) + usgn(R)); return result; end function "+";
 
@@ -537,18 +610,233 @@ package body n2oblife_pkg is
     -- TODO if necessary
 
 -------------------------------------------------------------------------------------------------
+-- TEST BENCH
+-------------------------------------------------------------------------------------------------
+    
+    -- Read video file 
+    procedure p_read_video_file_tb(
+        clk             :std_logic;         -- reading clk
+        tb_img_path     : string;           -- path to the image
+        s_fread_sig     : t_ASI;            -- file read signals
+        s_video_reset   : sl;               -- a video reset signal
+        msb_first       : std_logic;        -- tells if msb sent first
+        tb_frd_status   : TB_FILE_STATUS    -- checks read status
+    ) is
+        type char_file is file of character;
+        file img_file           : char_file;
+        variable open_status    : FILE_OPEN_STATUS;
+        variable rd_data        : character;
+        variable s_img_pix      : std_logic_vector(s_fread_data'high downto 0);
+    begin
+        
+        -- wait tb start is 1st img
+        if (s_video_reset ='1') then
+            wait until s_video_reset ='0';
+            wait until s_video_reset ='0';
+        end if;
+        
+        tb_frd_status <= ST_WAIT_NEW_IMG;
+        
+        -- wait new img
+        if (s_fread_sig.sop='0') then
+            wait until s_fread_sig.sop='1';
+        end if;
+        
+        report "New image READ";
+        tb_frd_status <= ST_NEW_IMG_RX;
+        
+        -- open image
+        file_open(open_status, img_file, tb_img_path,  read_mode);
+        
+        -- check  image status
+        if open_status /= open_ok then
+            report "IMG_IN file not opened" severity failure;
+            tb_frd_status <= ST_FILE_OPENED_OK;
+        else
+            report "IMG_IN file open ok ";
+            tb_frd_status <= ST_FILE_OPENED_KO;
+        end if;
+        
+        -- wait sof end
+        if (s_fread_sig.sop='1') then
+            wait until s_fread_sig.sop='0';
+        end if;    
+        
+        -- read image 
+        -- loop
+        while (s_fread_sig.sop='0') loop
+            -- axi stream requires video data
+            if (s_fread_sig.valid='1') then-- and s_axis_tready='1') then
+                tb_frd_status <= ST_FILE_PROCESSING;
+                
+                -- MSB FIRST FILE READ
+                if (msb_first='1') then
+                    for pix_bus_index in (s_fread_sig.data'high/8 - 1) downto 0 loop
+                        -- read 1 byte
+                        if not endfile(img_file) then
+                            read(img_file, rd_data);
+                            s_img_pix( ((pix_bus_index+1)*8)-1 downto ((pix_bus_index)*8) ) := std_logic_vector(to_unsigned(natural(character'pos(rd_data)), 8));
+                        else
+                            report "missing pixel msb" severity failure;
+                        end if;
+                    end loop;
+                
+                -- LSB FIRST FILE READ
+                else
+                    for pix_bus_index in 0 to (s_fread_sig.data'high/8 - 1) loop
+                        -- read 1 byte
+                        if not endfile(img_file) then
+                            read(img_file, rd_data);
+                            s_img_pix( ((pix_bus_index+1)*8)-1 downto ((pix_bus_index)*8) ) := std_logic_vector(to_unsigned(natural(character'pos(rd_data)), 8));
+                        else
+                            report "missing pixel msb" severity failure;
+                        end if;
+                    end loop;
+                    
+                end if;
+                
+                s_fread_sig.data <= s_img_pix;
+            
+            -- no data required, wait next clk
+            else
+                
+            end if;
+            
+            wait until rising_edge(clk);
+            
+        end loop;
+        
+        report "Image Read end";
+        
+        -- check if file is empty
+        if endfile(img_file) then
+            report "ALL pixel read OK";
+            tb_frd_status <= ST_FILE_END_OK;
+        else
+            report "NOK ALL pixel read NOK";
+            tb_frd_status <= ST_FILE_END_KO;
+        end if;
+        
+        -- fermeture du fichier
+        file_close(img_file);
+        wait for 1 ns;
+        
+        tb_frd_status <= ST_FILE_CLOSED;
+        
+        -- loop end
+        report "Image closed";
+        
+    end procedure p_read_video_file_tb;
+
+    -- procedure p_write_video_file_tb(
+    --     tb_fwr_status               : TB_FILE_STATUS
+    --     tb_img_wr_pix_byte_cnt      : integer;
+    -- ) is
+    --     type char_file is file of character;
+    --     file img_file_BT            : char_file;
+    --     variable open_status_BT     : FILE_OPEN_STATUS;
+    --     variable wr_data            : character;
+    --     variable s_img_pix          : std_logic_vector(FILE_VIDEO_WR_WIDTH-1 downto 0);        
+    --     variable img_file_name_BT   : string(1 to 8+1+2+4);   -- img_16b_ + _ + frameNb + ext
+    --     variable s_vin_frame_cnt    : integer := 0;
+    -- begin
+    --     -- attention au blanking, le meme SOF est utilé en in et en ou du DUT
+    --     -- il faut au moins 3 lignes de blancking enfin d'image
+        
+    --     tb_img_wr_pix_byte_cnt <= 0;
+    --     wait for 1 ns;
+        
+    --     tb_fwr_status <= ST_WAIT_NEW_IMG;
+        
+    --     -- wait new img
+    --     if (s_fwrite_sop='0') then
+    --         wait until s_fwrite_sop='1';
+    --     end if;
+        
+    --     tb_fwr_status <= ST_NEW_IMG_RX;
+        
+    --     -- generation nom image a ecrire
+    --     if (s_vin_frame_cnt<10) then
+    --         img_file_name_BT := "img_BTi_" &  "_" & "0"&integer'image(s_vin_frame_cnt) & tb_out_file_ext_raw;
+    --         report "img_file_name_BT = |" & img_file_name_BT & "|";
+            
+    --     else
+    --         img_file_name_BT := "img_BTi_" &  "_" & integer'image(s_vin_frame_cnt) & tb_out_file_ext_raw;
+    --         report "img_file_name_BT = |" & img_file_name_BT & "|";
+            
+    --     end if;
+        
+    --     tb_dbg_img_file_name <= img_file_name_BT;
+        
+    --     -- ouverture de l'image
+    --     file_open(open_status_BT, img_file_BT, TB_SIMU_PATH&img_file_name_BT, write_mode);
+        
+    --     -- check  image status
+    --     if ( (open_status_BT /= open_ok) ) then
+    --         report "IMG_OUT file not opened" severity failure;
+    --         tb_fwr_status <= ST_FILE_OPENED_OK;
+    --     else
+    --         report "IMG_OUT file open ok ";
+    --         tb_fwr_status <= ST_FILE_OPENED_KO;
+    --     end if;
+        
+    --     -- wait sof end
+    --     if (s_fwrite_sop='1') then
+    --         wait until s_fwrite_sop='0';
+    --     end if; 
+        
+    --     -- check DUT output and write data
+    --     while (s_fwrite_sop='0') loop
+    --         -- wait clock
+    --         wait until rising_edge(s_video_clk);
+            
+    --         -- check data
+    --         if (s_fwrite_valid='1') then -- and m_axis_tready='1') then
+            
+    --             tb_fwr_status <= ST_FILE_PROCESSING;
+            
+    --             -- for pix_bus_index in 0 to (C_PIX_DEPTH/8 - 1) loop
+    --             for pix_bus_index in (FILE_VIDEO_WR_WIDTH/8 - 1) downto 0 loop
+    --                 wr_data :=  character'val(to_integer(unsigned(
+    --                                 s_fwrite_data( ((pix_bus_index+1)*8)-1 downto ((pix_bus_index)*8) )
+    --                             )));
+    --                 write(img_file_BT, wr_data);
+                    
+    --                 tb_img_wr_pix_byte_cnt <= tb_img_wr_pix_byte_cnt + 1;
+    --             end loop;
+    --         end if;
+                    
+    --     end loop;
+        
+    --     report "Image write end";
+    --     tb_fwr_status <= ST_FILE_END_OK;
+        
+    --     -- fermeture du fichier
+    --     file_close(img_file_BT);
+    --     wait for 1 ns;
+        
+    --     -- loop end
+    --     report "Image closed";
+        
+    --     tb_fwr_status <= ST_FILE_CLOSED;
+        
+    --     -- inc img count
+    --     s_vin_frame_cnt := s_vin_frame_cnt+1;
+
+    -- end procedure p_write_video_file_tb;
+
+-------------------------------------------------------------------------------------------------
 
     -- Procedure Read / Write for APB Interface
-    
     procedure p_apb_rd_reg_tb(
-        apb_inst    : t_APB                                           ;
+        apb_inst    : t_APB                                         ;
         apb_id      : integer                                       ;
         reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
-        apb_status  : t_apb_status
+        apb_status  : t_apb_states
         ) is
         begin
             -- test bus status
-            if (apb_status/=APB_ST_RDY) then
+            if (apb_status/=APB_RDY) then
                 report "APB Error" severity error;
             end if;
             
@@ -560,41 +848,41 @@ package body n2oblife_pkg is
         apb_inst.i_paddr (apb_id) <= reg_addr;
         wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_ST1;
+        apb_status <= APB_IDLE;
         
         -- T2 = access phase
         apb_inst.i_penable(apb_id) <= '1';
         -- PREADY not used
         wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_ST2;
+        apb_status <= APB_SETUP;
         
         -- T3 = read transfer
         apb_inst.apb_rd_data <= apb_inst.APB_PRDATA(apb_id);
         wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_ST3;
+        apb_status <= APB_ACCES;
         
         -- End transfert
         apb_inst.i_pselx   (apb_id) <= '0';
         apb_inst.i_penable(apb_id)  <= '0';
         
-        apb_status <= APB_ST_RDY;
+        apb_status <= APB_RDY;
         wait until falling_edge(apb_inst.pclk);
         
     end procedure p_apb_rd_reg_tb;
 
 
     procedure p_apb_wr_reg_tb(
-        apb_inst    : t_APB                                           ;
+        apb_inst    : t_APB                                         ;
         apb_id      : integer                                       ;
         reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
-        reg_data    : std_logic_vector(C_APB_DATA_LENGTH downto 0)                 ;
-        apb_status  : t_apb_status
+        reg_data    : std_logic_vector(C_APB_DATA_LENGTH downto 0)  ;
+        apb_status  : t_apb_states
     ) is
     begin
         -- test bus status
-        if (apb_status/=APB_ST_RDY) then
+        if (apb_status/=APB_RDY) then
             report "APB Error" severity error;
         end if;
     
@@ -607,29 +895,30 @@ package body n2oblife_pkg is
         apb_inst.o_pdata(apb_id) <= reg_data;    
         wait until rising_edge(apb_CLOCK);
         
-        apb_status <= APB_ST1;
+        apb_status <= APB_IDLE;
         
         -- T2 = access phase
         apb_inst.i_penable(apb_id) <= '1';
         -- PREADY not used
         wait until rising_edge(apb_CLOCK);
 
-        apb_status <= APB_ST2;
+        apb_status <= APB_SETUP;
 
         -- T3 = write transfer
         -- APB_PWDATA(apb_id) <= reg_data;    
         wait until rising_edge(apb_CLOCK);
         
-        apb_status <= APB_ST3;
+        apb_status <= APB_ACCES;
         
         -- End transfert
         apb_inst.i_pselx   (apb_id) <= '0';
         apb_inst.i_penable(apb_id)  <= '0';
         
-        apb_status <= APB_ST_RDY;
+        apb_status <= APB_RDY;
         wait until falling_edge(apb_CLOCK);
         
     end p_apb_wr_reg_tb;
+
 -------------------------------------------------------------------------------------------------
 end n2oblife_pkg;
 -------------------------------------------------------------------------------------------------
