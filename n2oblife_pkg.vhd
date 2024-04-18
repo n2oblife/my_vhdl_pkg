@@ -293,12 +293,27 @@ package n2oblife_pkg is
     );
 
 -------------------------------------------------------------------------------------------------
+    
+    -- generate ctrl signal for video read
+    procedure p_sig_ctrl_rd_video_file(
+        clk         : sl;       -- reading clk
+        clk_period  : time;     -- clk period
+        asi_ctrl    : t_ASI;    -- ctr signal generated to read video
+        frameHeight : int;      -- Height
+        frameWidth  : int;      -- Width
+        blanking_x  : int;      -- blanking between rows
+        blanking_y  : int       -- blanking between frames
+    )
 
+    -- Read video file 
     procedure p_read_video_file_tb(
-        tb_img_path     : string;           -- path to the image
-        s_fread_sig     : t_ASI;            -- file read signals
-        s_video_reset   : std_logic;        -- a video reset signal
-        msb_first       : std_logic;        -- tells if msb sent first
+        clk             : sl;               -- reading clk
+        clk_period      : time;             -- clk period
+        tb_img_path     : str;              -- path to the image
+        s_ctrl_rd_sig   : t_ASI;            -- ctrl signal generated to read video
+        s_fread_sig     : t_ASI;            -- file read signals for simulation
+        s_video_reset   : sl;               -- a video reset signal
+        msb_first       : sl;               -- tells if msb sent first
         tb_frd_status   : TB_FILE_STATUS    -- checks read status
     );
 
@@ -613,11 +628,52 @@ package body n2oblife_pkg is
 -- TEST BENCH
 -------------------------------------------------------------------------------------------------
     
+    -- generate ctrl signal for video read
+    procedure p_sig_ctrl_rd_video_file(
+        clk         : sl;
+        clk_period  : time;
+        asi_ctrl    : t_ASI;
+        frameHeight : int;
+        frameWidth  : int;
+        blanking_x  : int;
+        blanking_y  : int
+    ) is
+    begin
+
+        wait until rising_edge(clk);
+
+        -- restet row fifos
+        asi_ctrl.eop <= '1';
+        wait for 1*clk_period;
+        asi_ctrl.eop <= '0';
+        wait for blanking_x*clk_period;    
+
+        -- start new image
+        asi_ctrl.sop <= '1';
+        asi_ctrl.valid <= '1';
+        wait for 1*clk_period;
+        asi_ctrl.sop <= '0';
+
+        -- ctrl video signals
+        for i in 0 to frameHeight-1 loop
+            for j in 0 to frameWidth-1 loop
+                asi_ctrl.valid <= '1';
+                wait for 1*clk_period;
+            end loop;
+                asi_ctrl.valid <= '0';
+            wait for blanking_y*clk_period;    
+        end loop;
+            asi_ctrl.valid <= '0';
+
+  end procedure p_sig_ctrl_rd_video_file;
+
     -- Read video file 
     procedure p_read_video_file_tb(
-        clk             :std_logic;         -- reading clk
+        clk             : sl;               -- reading clk
+        clk_period      : time;             -- clk period
         tb_img_path     : string;           -- path to the image
-        s_fread_sig     : t_ASI;            -- file read signals
+        s_ctrl_rd_sig   : t_ASI;            -- ctrl signal generated
+        s_fread_sig     : t_ASI;            -- file read signals for simulation
         s_video_reset   : sl;               -- a video reset signal
         msb_first       : std_logic;        -- tells if msb sent first
         tb_frd_status   : TB_FILE_STATUS    -- checks read status
@@ -626,20 +682,19 @@ package body n2oblife_pkg is
         file img_file           : char_file;
         variable open_status    : FILE_OPEN_STATUS;
         variable rd_data        : character;
-        variable s_img_pix      : std_logic_vector(s_fread_data'high downto 0);
+        variable s_img_pix      : std_logic_vector(s_fread_sig.data'length downto 0);
     begin
         
         -- wait tb start is 1st img
         if (s_video_reset ='1') then
-            wait until s_video_reset ='0';
             wait until s_video_reset ='0';
         end if;
         
         tb_frd_status <= ST_WAIT_NEW_IMG;
         
         -- wait new img
-        if (s_fread_sig.sop='0') then
-            wait until s_fread_sig.sop='1';
+        if (s_ctrl_rd_sig.sop='0') then
+            wait until s_ctrl_rd_sig.sop='1';
         end if;
         
         report "New image READ";
@@ -651,27 +706,27 @@ package body n2oblife_pkg is
         -- check  image status
         if open_status /= open_ok then
             report "IMG_IN file not opened" severity failure;
-            tb_frd_status <= ST_FILE_OPENED_OK;
-        else
-            report "IMG_IN file open ok ";
             tb_frd_status <= ST_FILE_OPENED_KO;
+        else
+            report "IMG_IN file opened ";
+            tb_frd_status <= ST_FILE_OPENED_OK;
         end if;
         
         -- wait sof end
-        if (s_fread_sig.sop='1') then
-            wait until s_fread_sig.sop='0';
+        if (s_ctrl_rd_sig.sop='1') then
+            wait until s_ctrl_rd_sig.sop='0';
         end if;    
         
         -- read image 
         -- loop
-        while (s_fread_sig.sop='0') loop
+        while (s_ctrl_rd_sig.sop='0') and (tb_frd_status /= ST_FILE_END_OK) loop
             -- axi stream requires video data
-            if (s_fread_sig.valid='1') then-- and s_axis_tready='1') then
+            if (s_ctrl_rd_sig.valid='1') then-- and s_axis_tready='1') then
                 tb_frd_status <= ST_FILE_PROCESSING;
                 
                 -- MSB FIRST FILE READ
                 if (msb_first='1') then
-                    for pix_bus_index in (s_fread_sig.data'high/8 - 1) downto 0 loop
+                    for pix_bus_index in (s_fread_sig.data'length/8 - 1) downto 0 loop
                         -- read 1 byte
                         if not endfile(img_file) then
                             read(img_file, rd_data);
@@ -683,7 +738,7 @@ package body n2oblife_pkg is
                 
                 -- LSB FIRST FILE READ
                 else
-                    for pix_bus_index in 0 to (s_fread_sig.data'high/8 - 1) loop
+                    for pix_bus_index in 0 to (s_fread_sig.data'length/8 - 1) loop
                         -- read 1 byte
                         if not endfile(img_file) then
                             read(img_file, rd_data);
@@ -695,11 +750,22 @@ package body n2oblife_pkg is
                     
                 end if;
                 
+                -- push every signal for simulation
+                s_fread_sig <= s_ctrl_rd_sig;
                 s_fread_sig.data <= s_img_pix;
             
             -- no data required, wait next clk
             else
                 
+            end if;
+            
+            -- check if file is empty
+            if endfile(img_file) then
+                report "ALL pixel read OK";
+                tb_frd_status <= ST_FILE_END_OK;
+            -- else
+            --     report "NOK ALL pixel read NOK";
+            --     tb_frd_status <= ST_FILE_END_KO;
             end if;
             
             wait until rising_edge(clk);
@@ -708,18 +774,9 @@ package body n2oblife_pkg is
         
         report "Image Read end";
         
-        -- check if file is empty
-        if endfile(img_file) then
-            report "ALL pixel read OK";
-            tb_frd_status <= ST_FILE_END_OK;
-        else
-            report "NOK ALL pixel read NOK";
-            tb_frd_status <= ST_FILE_END_KO;
-        end if;
-        
         -- fermeture du fichier
         file_close(img_file);
-        wait for 1 ns;
+        wait for 0.1 *clk_period;
         
         tb_frd_status <= ST_FILE_CLOSED;
         
