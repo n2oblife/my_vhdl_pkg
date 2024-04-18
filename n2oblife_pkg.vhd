@@ -295,7 +295,7 @@ package n2oblife_pkg is
 -------------------------------------------------------------------------------------------------
     
     -- generate ctrl signal for video read
-    procedure p_sig_ctrl_rd_video_file(
+    procedure p_sig_ctrl_rd_video_file_tb(
         clk         : sl;       -- reading clk
         clk_period  : time;     -- clk period
         asi_ctrl    : t_ASI;    -- ctr signal generated to read video
@@ -629,7 +629,7 @@ package body n2oblife_pkg is
 -------------------------------------------------------------------------------------------------
     
     -- generate ctrl signal for video read
-    procedure p_sig_ctrl_rd_video_file(
+    procedure p_sig_ctrl_rd_video_file_tb(
         clk         : sl;
         clk_period  : time;
         asi_ctrl    : t_ASI;
@@ -665,7 +665,7 @@ package body n2oblife_pkg is
         end loop;
             asi_ctrl.valid <= '0';
 
-  end procedure p_sig_ctrl_rd_video_file;
+  end procedure p_sig_ctrl_rd_video_file_tb;
 
     -- Read video file 
     procedure p_read_video_file_tb(
