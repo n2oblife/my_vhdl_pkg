@@ -303,7 +303,7 @@ package n2oblife_pkg is
         frameWidth  : int;      -- Width
         blanking_x  : int;      -- blanking between rows
         blanking_y  : int       -- blanking between frames
-    )
+    );
 
     -- Read video file 
     procedure p_read_video_file_tb(
