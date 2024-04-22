@@ -40,7 +40,7 @@
 -- My_Signal_fe: Falling edge detection of My_Signal
 -- My_Signal_rX: X times registered My_Signal signal
 --
--- P_Process_Name: Process
+-- P_Process_Name: Process and procedures
 --
 -------------------------------------------------------------------------------------------------
 
@@ -70,6 +70,8 @@ package n2oblife_pkg is
     subtypes pos    is positive;
     subtypes str    is string;
     subtypes char   is character;
+    subtypes cst    is constant;
+    subtypes sig    is signal;
 
     -- Data strcuture
     type buffer is array (nat <range>) of sl;
