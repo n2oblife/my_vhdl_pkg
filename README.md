@@ -12,5 +12,6 @@ This file contains my vhdl package with custom functions and types to ease the w
     / _                                 _  BAT _   //
    / (\) MJP                          +(_) 9v (=) //
   /______________________________________________//
-  `----------------------------------------------'    (ASCII by Veronica Karlson)
+  `----------------------------------------------'
+(ASCII by Veronica Karlson)
 ```
