@@ -182,22 +182,24 @@ package n2oblife_pkg is
     type t_APB is record
         -- CONTROL
         pclk        : sl;               -- APB clock
-        preset      : sl;               -- APB reset
-        -- INPUTS
-        i_paddr     : t_apb_bus_addr;   -- APB address
-        i_pdata     : t_apb_bus_data;   -- APB data
-        i_pwrite    : t_apb_bus_ctrl;   -- APB write (0:read / 1:write)
-        i_pstb      : t_apb_bus_pstb;   -- APB strobe
-        i_pselx     : t_apb_bus_ctrl;   -- APB select
-        i_penable   : t_apb_bus_ctrl;   -- APB enable
-        i_pprot     : t_apb_bus_pprot;  -- APB protection 
+        preset_n    : sl;               -- APB reset active low
+        -- WRITE
+        paddr     : t_apb_bus_addr;   -- APB address
+        pprot     : t_apb_bus_pprot;  -- APB protection 
                                             -- (xx0 : non-priviliged, xx1 : priviliged, 
                                             --  x0x : non-secure, x1x : secure, 
-                                            --  0xx : data access, 1xx : instruction access)      
-        -- OUTPUTS  
-        o_pdata     : t_apb_bus_data;   -- APB data from slave
-        o_pready    : t_apb_bus_ctrl;   -- APB ready signal from slave
-        o_pslverr   : t_apb_bus_ctrl;   -- APB slave error signal
+                                            --  0xx : data access, 1xx : instruction access)          
+        psne        : t_apb_bus_ctrl;   -- APB extension to protection type
+        pselx       : t_apb_bus_ctrl;   -- APB select when transfer required
+        penable     : t_apb_bus_ctrl;   -- APB enable
+        pwrite      : t_apb_bus_ctrl;   -- APB write (0:read / 1:write)
+        pwdata      : t_apb_bus_data;   -- APB write data (8, 16 or 32 bits)
+        pstrb       : t_apb_bus_pstb;   -- APB strobe which byte lanes to update
+        -- READ  
+        pready      : t_apb_bus_ctrl;   -- APB ready signal from slave
+        prdata      : t_apb_bus_data;   -- APB data from slave
+        pslverr     : t_apb_bus_ctrl;   -- APB slave error signal
+        -- OTHERS
     end record t_APB;
 
     -- Operating states
@@ -229,6 +231,67 @@ package n2oblife_pkg is
     -- function f_pop(in_row : buffer)
     -- function l_pop(in_row : buffer)
 
+-------------------------------------------------------------------------------------------------
+
+    -- -- Read on APB
+    -- procedure p_apb_rd(
+
+    -- );
+    -- pc_avalon_mm_read : process(all)
+	-- begin
+	
+	-- 	prdata	        <= x"beefcafe";
+    --     s_params_bit    <= (others=>'0');
+    --     s_reset         <= s_params_ctrl(0);
+		
+	-- 	case paddr is
+    --         -- ctrl
+    --         when x"00" =>	prdata	<= x"a4b114e4";
+    --         when x"04" =>	prdata	<= x"00010000";
+    --         when x"08" =>	prdata	<= s_params_bit;
+    --         when x"0c" =>	prdata	<= s_params_ctrl;
+            
+    --         -- read monitoring
+    --         when x"10" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_rdreq,32));
+    --         when x"14" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_ntvrdreq,32));  
+    --         when x"18" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_rdvalid_last,32));
+    --         when x"1c" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_rdvalid,32));             
+    --         -- write monitoring
+    --         when x"20" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_wrreq,32));
+    --         when x"24" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_ntvwrreq,32));
+    --         when x"28" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_dreq_last,32));
+    --         when x"2c" =>	prdata	<= std_logic_vector(to_unsigned(s_monito_cnt_dreq,32));
+
+
+    --         when others => null;
+    --     end case;
+	
+	-- end process pc_avalon_mm_read;
+
+    -- -- write on APB
+	-- ps_avalon_mm_write : process(i_rst, apb_clock)
+	-- begin
+	
+	-- 	if (i_rst = '1') then
+		
+	-- 		s_params_ctrl		<= x"00000000";
+			
+	-- 	elsif (rising_edge(apb_clock)) then
+		
+	-- 		s_params_ctrl		<= s_params_ctrl;
+			
+	-- 		if (penable = '1' and pwrite = '1' and psel = '1') then
+	-- 			case paddr is
+
+	-- 				when x"0c" =>	s_params_ctrl	<= pwdata;
+                    
+	-- 				when others =>	null;
+	-- 			end case;
+	-- 		end if;
+			
+	-- 	end if;
+
+	-- end process ps_avalon_mm_write;
 -------------------------------------------------------------------------------------------------
 -- TESTBENCH
 -------------------------------------------------------------------------------------------------
@@ -886,97 +949,97 @@ package body n2oblife_pkg is
 
 -------------------------------------------------------------------------------------------------
 
-    -- Procedure Read / Write for APB Interface
-    procedure p_apb_rd_reg_tb(
-        apb_inst    : t_APB                                         ;
-        apb_id      : integer                                       ;
-        reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
-        apb_status  : t_apb_states
-        ) is
-        begin
-            -- test bus status
-            if (apb_status/=APB_RDY) then
-                report "APB Error" severity error;
-            end if;
+    -- -- Procedure Read / Write for APB Interface
+    -- procedure p_apb_rd_reg_tb(
+    --     apb_inst    : t_APB                                         ;
+    --     apb_id      : integer                                       ;
+    --     reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
+    --     apb_status  : t_apb_states
+    --     ) is
+    --     begin
+    --         -- test bus status
+    --         if (apb_status/=APB_RDY) then
+    --             report "APB Error" severity error;
+    --         end if;
             
-        ---------------------------------------------
-        -- READ Transfer – Without Wait States
-        -- T1 = setup phase
-        apb_inst.i_pwrite(apb_id) <= '0';
-        apb_inst.i_pselx (apb_id) <= '1';
-        apb_inst.i_paddr (apb_id) <= reg_addr;
-        wait until rising_edge(apb_inst.pclk);
+    --     ---------------------------------------------
+    --     -- READ Transfer – Without Wait States
+    --     -- T1 = setup phase
+    --     apb_inst.i_pwrite(apb_id) <= '0';
+    --     apb_inst.i_pselx (apb_id) <= '1';
+    --     apb_inst.i_paddr (apb_id) <= reg_addr;
+    --     wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_IDLE;
+    --     apb_status <= APB_IDLE;
         
-        -- T2 = access phase
-        apb_inst.i_penable(apb_id) <= '1';
-        -- PREADY not used
-        wait until rising_edge(apb_inst.pclk);
+    --     -- T2 = access phase
+    --     apb_inst.i_penable(apb_id) <= '1';
+    --     -- PREADY not used
+    --     wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_SETUP;
+    --     apb_status <= APB_SETUP;
         
-        -- T3 = read transfer
-        apb_inst.apb_rd_data <= apb_inst.APB_PRDATA(apb_id);
-        wait until rising_edge(apb_inst.pclk);
+    --     -- T3 = read transfer
+    --     apb_inst.apb_rd_data <= apb_inst.APB_PRDATA(apb_id);
+    --     wait until rising_edge(apb_inst.pclk);
         
-        apb_status <= APB_ACCES;
+    --     apb_status <= APB_ACCES;
         
-        -- End transfert
-        apb_inst.i_pselx   (apb_id) <= '0';
-        apb_inst.i_penable(apb_id)  <= '0';
+    --     -- End transfert
+    --     apb_inst.i_pselx   (apb_id) <= '0';
+    --     apb_inst.i_penable(apb_id)  <= '0';
         
-        apb_status <= APB_RDY;
-        wait until falling_edge(apb_inst.pclk);
+    --     apb_status <= APB_RDY;
+    --     wait until falling_edge(apb_inst.pclk);
         
-    end procedure p_apb_rd_reg_tb;
+    -- end procedure p_apb_rd_reg_tb;
 
 
-    procedure p_apb_wr_reg_tb(
-        apb_inst    : t_APB                                         ;
-        apb_id      : integer                                       ;
-        reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
-        reg_data    : std_logic_vector(C_APB_DATA_LENGTH downto 0)  ;
-        apb_status  : t_apb_states
-    ) is
-    begin
-        -- test bus status
-        if (apb_status/=APB_RDY) then
-            report "APB Error" severity error;
-        end if;
+    -- procedure p_apb_wr_reg_tb(
+    --     apb_inst    : t_APB                                         ;
+    --     apb_id      : integer                                       ;
+    --     reg_addr    : std_logic_vector(C_APB_ADDR_LENGTH-1 downto 0);
+    --     reg_data    : std_logic_vector(C_APB_DATA_LENGTH downto 0)  ;
+    --     apb_status  : t_apb_states
+    -- ) is
+    -- begin
+    --     -- test bus status
+    --     if (apb_status/=APB_RDY) then
+    --         report "APB Error" severity error;
+    --     end if;
     
-        -- WRITE Transfer – Without Wait States
-        ---------------------------------------------
-        -- T1 = write transfer setup
-        apb_inst.i_pwrite(apb_id) <= '1';
-        apb_inst.i_pselx (apb_id) <= '1';
-        apb_inst.i_paddr (apb_id) <= reg_addr;
-        apb_inst.o_pdata(apb_id) <= reg_data;    
-        wait until rising_edge(apb_CLOCK);
+    --     -- WRITE Transfer – Without Wait States
+    --     ---------------------------------------------
+    --     -- T1 = write transfer setup
+    --     apb_inst.i_pwrite(apb_id) <= '1';
+    --     apb_inst.i_pselx (apb_id) <= '1';
+    --     apb_inst.i_paddr (apb_id) <= reg_addr;
+    --     apb_inst.o_pdata(apb_id) <= reg_data;    
+    --     wait until rising_edge(apb_CLOCK);
         
-        apb_status <= APB_IDLE;
+    --     apb_status <= APB_IDLE;
         
-        -- T2 = access phase
-        apb_inst.i_penable(apb_id) <= '1';
-        -- PREADY not used
-        wait until rising_edge(apb_CLOCK);
+    --     -- T2 = access phase
+    --     apb_inst.i_penable(apb_id) <= '1';
+    --     -- PREADY not used
+    --     wait until rising_edge(apb_CLOCK);
 
-        apb_status <= APB_SETUP;
+    --     apb_status <= APB_SETUP;
 
-        -- T3 = write transfer
-        -- APB_PWDATA(apb_id) <= reg_data;    
-        wait until rising_edge(apb_CLOCK);
+    --     -- T3 = write transfer
+    --     -- APB_PWDATA(apb_id) <= reg_data;    
+    --     wait until rising_edge(apb_CLOCK);
         
-        apb_status <= APB_ACCES;
+    --     apb_status <= APB_ACCES;
         
-        -- End transfert
-        apb_inst.i_pselx   (apb_id) <= '0';
-        apb_inst.i_penable(apb_id)  <= '0';
+    --     -- End transfert
+    --     apb_inst.i_pselx   (apb_id) <= '0';
+    --     apb_inst.i_penable(apb_id)  <= '0';
         
-        apb_status <= APB_RDY;
-        wait until falling_edge(apb_CLOCK);
+    --     apb_status <= APB_RDY;
+    --     wait until falling_edge(apb_CLOCK);
         
-    end p_apb_wr_reg_tb;
+    -- end p_apb_wr_reg_tb;
 
 -------------------------------------------------------------------------------------------------
 end n2oblife_pkg;
