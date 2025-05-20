@@ -143,6 +143,11 @@ package n2oblife_pkg is
     function concat (L:matrix;  R:matrix)   return matrix;
 
 -------------------------------------------------------------------------------------------------
+    
+    -- Returns the bit width of i as a positive integer
+    function BitWidth (i:positive) return positive; 
+
+-------------------------------------------------------------------------------------------------
     ---------------------------------------------
     -- Avalon Streaming Interface
     ---------------------------------------------
@@ -668,6 +673,13 @@ package body n2oblife_pkg is
         for i in L'range loop result(i+R'length) := L(i); end loop;
         return result;
     end function concat;
+
+-------------------------------------------------------------------------------------------------
+
+    function BitWidth(constant i: in positive) return positive is
+    begin
+        return positive(ceil(log2(real(i) + real(1))));  -- Add one to prevent errors when i = 2**n
+    end function;
 
 -------------------------------------------------------------------------------------------------
 
